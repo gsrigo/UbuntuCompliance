@@ -1,0 +1,395 @@
+---
+# tasks file for NIST800-171_Ubuntu20
+# ===========================================================================
+#                             Package Mgmt
+# ===========================================================================
+- name: Package Management
+  block:
+    - name: Remove Packages
+      apt:
+        pkg:
+        state: absent
+          - nis
+          - rsh-server
+          - telnetds
+
+    - name: Install Necessary Packages
+      apt:
+        pkg:
+          - rsyslog
+          - ufw
+          - pwquality
+          - auditd
+          - vlock
+          - libpam-pkcs11
+          - opensc-pkcs11
+          - libpam-apparmor
+          - aide
+          - libpam-pwquality
+          - tmux
+  tags:
+    - pkg_mgmt
+
+# ===========================================================================
+#                     GUI Configuration 
+#            exclude tag "gui" for non-gui servers
+# ===========================================================================
+- name: GUI Settings
+  template:
+    src: 10-security-settings.j2
+    dest: /usr/share/gdm/dconf/99-security-settings
+  notify: dconf_update
+  tags:
+    - gui
+
+# ==================================================================================
+#         Account Settings, PAM Modules, PWQuality
+# ==================================================================================
+- name: Setup PAM modules with templates
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    backup: yes
+  with_items:
+    - { src: 'common_auth.j2', dest: '/etc/pam.d/common-auth' }
+    - { src: 'common_password.j2', dest: '/etc/pam.d/common-password' }
+
+- name: Ensure PAM variable lcredit is set accordingly
+  lineinfile:
+    create: true
+    path: /etc/security/pwquality.conf
+    regexp: '^#?\s*lcredit'
+    line: lcredit = {{ var_password_pam_lcredit }}
+
+- name: Ensure PAM variable ocredit is set accordingly
+  lineinfile:
+    create: true
+    path: /etc/security/pwquality.conf
+    regexp: '^#?\s*ocredit'
+    line: ocredit = {{ var_password_pam_ocredit }}
+
+- name: Ensure PAM variable difok is set accordingly
+  lineinfile:
+    create: true
+    path: /etc/security/pwquality.conf
+    regexp: '^#?\s*difok'
+    line: difok = {{ var_password_pam_difok }}
+
+- name: Ensure PAM variable ucredit is set accordingly
+  lineinfile:
+    create: true
+    path: /etc/security/pwquality.conf
+    regexp: '^#?\s*ucredit'
+    line: ucredit = {{ var_password_pam_ucredit }}
+
+- name: Ensure PAM variable maxrepeat is set accordingly
+  lineinfile:
+    create: true
+    path: /etc/security/pwquality.conf
+    regexp: '^#?\s*maxrepeat'
+    line: maxrepeat = {{ var_password_pam_maxrepeat }}
+
+- name: Ensure PAM variable maxclassrepeat is set accordingly
+  lineinfile:
+    create: true
+    path: /etc/security/pwquality.conf
+    regexp: '^#?\s*maxclassrepeat'
+    line: maxclassrepeat = {{ var_password_pam_maxclassrepeat }}
+
+- name: Ensure PAM variable dcredit is set accordingly
+  lineinfile:
+    create: true
+    path: /etc/security/pwquality.conf
+    regexp: '^#?\s*dcredit'
+    line: dcredit = {{ var_password_pam_dcredit }}
+
+- name: Ensure PAM variable minlen is set accordingly
+  lineinfile:
+    create: true
+    path: /etc/security/pwquality.conf
+    regexp: '^#?\s*minlen'
+    line: minlen = {{ var_password_pam_minlen }}
+
+- name: Ensure PAM variable dictcheck is set
+  lineinfile:
+    path: /etc/security/pwquality.conf
+    regexp: '^\s*dictcheck'
+    line: "{{ var_password_pam_dictcheck }}"
+    create: yes
+
+- name: Login Encrypt Method
+  lineinfile:
+    path: /etc/login.defs
+    regexp: '^ENCRYPT_METHOD'
+    line: "{{ var_accounts_password_encrypt_method }}"
+    create: yes
+
+- name: Set Password Minimum DAYS in login.defs
+  lineinfile:
+    path: /etc/login.defs
+    regexp: '^PASS_MIN_DAYS'
+    state: present
+    line: PASS_MIN_LEN {{ var_accounts_password_minlen_login_defs }}
+
+- name: Set Password Max DAYS in login.defs
+  lineinfile:
+    path: /etc/login.defs
+    regexp: '^PASS_MAX_DAYS'
+    state: present
+    line: PASS_MIN_LEN {{ var_accounts_password_maxlen_login_defs }}
+
+- name: Set accounts logon fail delay
+  lineinfile:
+    path: /etc/login.defs
+    regexp: '^FAIL_DELAY'
+    line: FAIL_DELAY {{ var_accounts_fail_delay }}
+    state: present
+    create: true
+
+- name: Limit the Number of Concurrent Login Sessions Allowed Per User
+  lineinfile: 
+    path: /etc/security/limits.conf
+    insertbefore: '^# End of file'
+    regexp: '^#?\*.*maxlogins'
+    line: '*    hard    maxlogins    {{ var_accounts_max_concurrent_login_sessions }}'
+    state: present
+    create: true
+
+- name: Set user umask in /etc/profile
+  replace:
+    path: /etc/profile
+    regexp: 'umask.*'
+    replace: umask {{ var_accounts_user_umask }}
+
+# ====================================================================
+#                   Auditd
+# ====================================================================
+- name: Copy Auditd rules files
+  copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: '0644'
+  with_items:
+    - { src: 'files/auditd_custom.rules', dest: '/etc/audit/rules.d/nist800-171.rules' }
+    - { src: 'files/auditd_rules.rules', dest: '/etc/audit/rules.d/auditd.rules' }
+  tags:
+    - auditd
+
+- name: Enable service auditd
+  service:
+    name: auditd
+    enabled: yes
+    state: started
+  tags:
+    - auditd
+
+- name: Include Local Events in Audit Logs
+  block:
+    - name: Deduplicate values from /etc/audit/auditd.conf
+      lineinfile:
+        path: /etc/audit/auditd.conf
+        create: false
+        regexp: (?i)^\s*local_events\s*=\s*
+        state: absent
+    - name: Insert correct line to /etc/audit/auditd.conf
+      lineinfile:
+        path: /etc/audit/auditd.conf
+        create: true
+        line: local_events = yes
+        state: present
+  tags:
+    - auditd
+
+- name: Set hostname as computer node name in audit logs
+  block:
+    - name: Deduplicate values from /etc/audit/auditd.conf
+      lineinfile:
+        path: /etc/audit/auditd.conf
+        create: false
+        regexp: (?i)^\s*name_format\s*=\s*
+        state: absent
+    - name: Insert correct line to /etc/audit/auditd.conf
+      lineinfile:
+        path: /etc/audit/auditd.conf
+        create: true
+        line: name_format = hostname
+        state: present
+      notify: auditd_restart
+  tags:
+    - auditd
+
+#=========================================
+#         Other settings 
+#=========================================
+- name: Use chrony instead of NTP
+  block:
+    - name: stop and disable ntp
+      service:
+        name: ntpd
+        state: stopped
+        enabled: no
+    - name: Install chrony
+      package:
+        name: chrony
+        state: latest
+    - name: start and configure chrony
+      service:
+        name: chronyd
+        state: restarted
+        enabled: yes
+
+- name: disable core dumps with limits
+  lineinfile:
+    dest: /etc/security/limits.conf
+    regexp: ^[^#].*core
+    line: '*        hard       core      0'
+    create: true
+
+- name: Disable Ctrl-Alt-Del Reboot Activation
+  systemd:
+    name: ctrl-alt-del.target
+    masked: yes
+
+- name: Disable Ctrl-Alt-Del Burst Action
+  lineinfile:
+    dest: /etc/systemd/system.conf
+    state: present
+    regexp: '^CtrlAltDelBurstAction'
+    line: CtrlAltDelBurstAction=none
+    create: true
+
+- name: Ensure kernel module 'sctp' is disabled
+  lineinfile:
+    create: true
+    dest: /etc/modprobe.d/sctp.conf
+    regexp: sctp
+    line: install sctp /bin/true
+
+- name: Ensure kernel module 'dccp' is disabled
+  lineinfile:
+    create: true
+    dest: /etc/modprobe.d/dccp.conf
+    regexp: dccp
+    line: install dccp /bin/true
+
+#===========================================
+#        SSH Settings
+#===========================================
+- name: SSH Settings Block
+  block:
+    - name: Copy Banner
+      copy:
+        src: files/issue.net
+        dest: /etc/issue.net
+        owner: root
+        group: root
+        mode: 0644
+      with_items:
+        - /etc/issue
+        - /etc/issue.net
+
+    - name: Ensure Protocol V2 is being used
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^\s*(?i)Protocol\s+'
+        line: Protocol 2
+
+    - name: Ensure PAM modules are used
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^\s*(?i)UsePAM\s+'
+        line: UsePAM yes
+
+    - name: Disable SSH Access via Empty Passwords
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        create: true
+        line: PermitEmptyPasswords no
+        state: present
+        insertbefore: ^[#\s]*Match
+
+    - name: Enable Use of Strict Mode Checking
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        create: true
+        line: StrictModes yes
+        state: present
+        insertbefore: ^[#\s]*Match
+
+    - name: Disable SSH Support for Rhosts RSA Authentication
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        create: true
+        line: RhostsRSAAuthentication no
+        state: present
+        insertbefore: ^[#\s]*Match
+
+    - name: Set SSH Idle Timeout Interval
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        create: true
+        line: ClientAliveInterval {{ sshd_client_alive_interval }}
+        state: present
+        insertbefore: ^[#\s]*Match
+        validate: /usr/sbin/sshd -t -f %s
+
+    - name: Disable SSH Root Login
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        create: true
+        line: PermitRootLogin no
+        state: present
+        insertbefore: ^[#\s]*Match
+
+    - name: Set SSH Client Alive Max Count
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        create: true
+        line: ClientAliveCountMax {{ sshd_client_alive_countmax }}
+        state: present
+        insertbefore: ^[#\s]*Match
+
+    - name: Disable GSSAPI Authentication
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        create: true
+        line: GSSAPIAuthentication no
+        state: present
+        insertbefore: ^[#\s]*Match
+
+    - name: Enable SSH Warning Banner
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        create: true
+        line: Banner /etc/issue.net
+        state: present
+        insertbefore: ^[#\s]*Match
+
+    - name: Use Only FIPS 140-2 Validated MACs
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        create: true
+        line: MACs {{ sshd_approved_macs }}
+        state: present
+        insertbefore: ^[#\s]*Match
+
+    - name: Use Only FIPS 140-2 Validated Ciphers
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        create: true
+        line: Ciphers {{ sshd_approved_ciphers }}
+        state: present
+        insertbefore: ^[#\s]*Match
+
+    - name: Disable Host-Based Authentication
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        create: true
+        line: HostbasedAuthentication no
+        state: present
+        insertbefore: ^[#\s]*Match
+        validate: /usr/sbin/sshd -t -f %s
+        notify: ssh_restart
+  tags:
+    - ssh_settings

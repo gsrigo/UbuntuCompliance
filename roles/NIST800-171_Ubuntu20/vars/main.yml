@@ -1,0 +1,49 @@
+---
+# vars file for ubuntu
+#GUI
+gui_idle_delay: '900'
+gui_lock_enabled: 'true'
+gui_lock_delay: '60'
+gui_disable_user_list: 'true'
+gui_banner_message_enable: 'true'
+gui_banner_message_text: 'You are accessing a U.S. Government (USG) Information System (IS) that is provided for USG-authorized use only.
+By using this IS (which includes any device attached to this IS), you consent to the following conditions:
+
+-The USG routinely intercepts and monitors communications on this IS for purposes including, but not limited to, penetration testing, COMSEC monitoring, network operations and defense, personnel misconduct (PM), law enforcement (LE), and counterintelligence (CI) investigations.
+
+-At any time, the USG may inspect and seize data stored on this IS.
+
+-Communications using, or data stored on, this IS are not private, are subject to routine monitoring, interception, and search, and may be disclosed or used for any USG-authorized purpose.
+
+-This IS includes security measures (e.g., authentication and access controls) to protect USG interests--not for your personal benefit or privacy.
+
+-Notwithstanding the above, using this IS does not constitute consent to PM, LE or CI investigative searching or monitoring of the content of privileged communications, or work product, related to personal representation or services by attorneys, psychotherapists, or clergy, and their assistants. Such communications and work product are private and confidential. See User Agreement for details.'
+
+#Account Settings, PAM Modules, PWQuality
+var_password_pam_lcredit: '-1'
+var_password_pam_ocredit: '-1'
+var_password_pam_difok: '4'
+var_password_pam_ucredit: '-1'
+var_password_pam_maxrepeat: '3'
+var_password_pam_maxclassrepeat: '4'
+var_password_pam_dcredit: '-1'
+var_password_pam_minlen: '12'
+var_password_pam_dictcheck: 'dictcheck=1'
+var_accounts_passwords_pam_deny: '10'
+var_accounts_passwords_pam_fail_interval: '900'
+var_accounts_passwords_pam_unlock_time: '43200'
+var_accounts_pam_faildelay: '2000000'
+var_password_pam_unix_remember: '5'
+var_pam_pq_retry: '3'
+var_accounts_fail_delay: '4'
+var_accounts_max_concurrent_login_sessions: '10'
+var_accounts_user_umask: '027'
+var_accounts_password_minlen_login_defs: 'PASS_MIN_DAYS 1'
+var_accounts_password_maxlen_login_defs: 'PASS_MAX_DAYS 60'
+var_accounts_password_encrypt_method: 'ENCRYPT_METHOD SHA512'
+
+#SSH vars
+sshd_client_alive_interval: '259200' #72 hours
+sshd_client_alive_countmax: '0'
+sshd_approved_macs: 'hmac-sha2-512,hmac-sha2-256'
+sshd_approved_ciphers: 'aes256-ctr,aes192-ctr,aes128-ctr'

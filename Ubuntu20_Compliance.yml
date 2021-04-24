@@ -1,0 +1,18 @@
+---
+# main.yml Compliance Job for Ubuntu 20.04
+# Select the role to run:
+# ansible-playbook -i <inventory> Ubuntu20_Compliance.yml --tags <NIST800_171 or STIG_Ubuntu>
+
+- name: DFARS and Post-Provisioning Ansible Job
+  hosts: all
+  become: yes
+  ignore_errors: yes
+
+  roles:
+    - role: NIST800-171_Ubuntu20
+      tags:
+        - NIST800_171
+
+    - role: STIG_Ubuntu20
+      tags:
+        - STIG_Ubuntu

@@ -1,0 +1,15 @@
+[org/gnome/desktop/session]
+# Set the lock time before the session is considered idle
+idle-delay={{ gui_idle_delay }}
+# Set this to true to lock the screen when the screensaver activates
+lock-enabled={{ gui_lock_enabled }}
+# Set the lock timeout after the screensaver has been activated
+lock-delay= {{ gui_lock_delay }}
+
+[org/gnome/login-screen]
+#Enable the banner message
+banner-message-enable={{ gui_banner_message_enable }}
+#banner message
+banner-message-text='{{ gui_banner_message_text }}'
+# Do not show the user list
+disable-user-list={{ gui_disable_user_list }}

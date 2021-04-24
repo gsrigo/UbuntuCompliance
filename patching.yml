@@ -1,0 +1,21 @@
+---
+- name: Patching Playbook
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Apt upgrade
+      apt:
+        update_cache: yes
+        upgrade: dist
+        dpkg_options: 'force-confold,force-confdef'
+        autoremove: yes
+
+    - name: Check if Reboot is needed
+      stat:
+        path: /var/run/reboot-required
+      register: ubuntu_reboot
+
+    - name: Rebooting Ubuntu Systems
+      reboot:
+      when: ubuntu_reboot.stat.exists == True

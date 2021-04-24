@@ -1,0 +1,13 @@
+#Template file for common-auth
+auth    required                        pam_tally2.so onerr=fail deny={{ var_accounts_passwords_pam_deny }} unlock_time={{ var_accounts_passwords_pam_unlock_time }}
+auth    required                        pam_faildelay.so delay={{ var_accounts_pam_faildelay }}
+auth    sufficient                      pam_krb5.so minimum_uid=1000
+auth    [success=3 default=ignore]      pam_unix.so nullok_secure try_first_pass
+auth    [success=2 default=ignore]      pam_sss.so use_first_pass
+auth    [success=1 default=ignore]      pam_ccreds.so minimum_uid=1000 action=validate use_first_pass
+auth    requisite                       pam_deny.so
+auth    required                        pam_permit.so
+
+#additional
+auth    optional                        pam_ccreds.so minimum_uid=1000 action=store
+auth    optional                        pam_cap.so

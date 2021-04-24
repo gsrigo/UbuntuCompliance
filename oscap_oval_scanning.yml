@@ -1,0 +1,59 @@
+---
+- name: Scanning Playbook
+  hosts: all
+  become: yes
+  gather_facts: yes
+  ignore_errors: yes
+
+  vars:
+    ssg_location: '/usr/local/xml/ssg_ubuntu2004'
+    xml_files: 'files/ssg_ubuntu2004/'
+    fetch_location: '/home/rigo/files/'
+    xccdf_profile: 'xccdf_org.ssgproject.content_profile_standard'
+
+  tasks:
+
+    - name: Install OpenScap on Clients
+      apt:
+        name: libopenscap8
+        state: present
+
+    - name: Create Hold directory
+      file:
+        path: "{{  ssg_location }}"
+        state: directory
+        mode: '0744'
+
+    - name: Copy built openscap xml Files
+      copy:
+        src: "{{ xml_files }}"
+        dest: "{{  ssg_location }}"
+
+    - name: Run Scap Scan
+      command: oscap xccdf eval --profile "{{ xccdf_profile }}" --results ssg-ubuntu20-xccfd-result.xml --report {{ inventory_hostname_short }}-OSCAP_Report-{{ansible_date_time.date}}.html ssg-ubuntu2004-ds.xml
+      args:
+        chdir: "{{  ssg_location }}"
+      no_log: True
+      ignore_errors: yes
+
+    - name: Run OVAL Report
+      shell: "{{ item }}"
+      args:
+        chdir: "{{ ssg_location }}"
+      with_items:
+        - wget https://security-metadata.canonical.com/oval/com.ubuntu.$(lsb_release -cs).usn.oval.xml.bz2
+        - bunzip2 com.ubuntu.$(lsb_release -cs).usn.oval.xml.bz2
+        - oscap oval eval --report {{ inventory_hostname_short }}-OVAL_Report-{{ ansible_date_time.date }}.html com.ubuntu.$(lsb_release -cs).usn.oval.xml
+
+    - name: Wait for Reports to finish
+      pause:
+        seconds: 10
+
+    - name: Fetch Report Files
+      fetch:
+        src: "{{ item }}"
+        dest: " {{ fetch_location }}"
+        flat: yes
+      with_items:
+        - "{{ ssg_location }}/{{ inventory_hostname_short }}-OSCAP_Report-{{ ansible_date_time.date }}.html"
+        - "{{ ssg_location }}/{{ inventory_hostname_short }}-OVAL_Report-{{ ansible_date_time.date }}.html"
