@@ -1,7 +1,10 @@
 ---
 # handlers file for NIST800-171_Ubuntu20
 - name: dconf_update
-  command: dconf update
+  command: "{{ item }}"
+  with_items:
+    - dconf update
+    - systemctl restart gdm
 
 - name: ssh_restart
   service:

@@ -8,17 +8,16 @@
     - name: Remove Packages
       apt:
         pkg:
-        state: absent
           - nis
           - rsh-server
           - telnetds
+        state: absent
 
     - name: Install Necessary Packages
       apt:
         pkg:
           - rsyslog
           - ufw
-          - pwquality
           - auditd
           - vlock
           - libpam-pkcs11
@@ -36,7 +35,7 @@
 # ===========================================================================
 - name: GUI Settings
   template:
-    src: 10-security-settings.j2
+    src: 99-security-settings.j2
     dest: /usr/share/gdm/dconf/99-security-settings
   notify: dconf_update
   tags:
@@ -171,7 +170,7 @@
     dest: "{{ item.dest }}"
     mode: '0644'
   with_items:
-    - { src: 'files/auditd_custom.rules', dest: '/etc/audit/rules.d/nist800-171.rules' }
+    - { src: 'files/nist800-171.rules', dest: '/etc/audit/rules.d/nist800-171.rules' }
     - { src: 'files/auditd_rules.rules', dest: '/etc/audit/rules.d/auditd.rules' }
   tags:
     - auditd
@@ -390,6 +389,6 @@
         state: present
         insertbefore: ^[#\s]*Match
         validate: /usr/sbin/sshd -t -f %s
-        notify: ssh_restart
+      notify: ssh_restart
   tags:
     - ssh_settings
