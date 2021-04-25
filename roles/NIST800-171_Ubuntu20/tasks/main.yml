@@ -26,6 +26,7 @@
           - aide
           - libpam-pwquality
           - tmux
+          - systemd-timesyncd
   tags:
     - pkg_mgmt
 
@@ -221,6 +222,63 @@
 #=========================================
 #         Other settings 
 #=========================================
+- name: Ensure sysctl fs.suid_dumpable is set to 0
+  sysctl:
+    name: fs.suid_dumpable
+    value: '0'
+    state: present
+    reload: true
+
+- name: Ensure sysctl kernel.randomize_va_space is set to 2
+  sysctl:
+    name: kernel.randomize_va_space
+    value: '2'
+    state: present
+    reload: true
+
+- name: Configure daily log rotation in /etc/logrotate.conf
+  lineinfile:
+    create: true
+    dest: /etc/logrotate.conf
+    regexp: '^daily$'
+    line: daily
+
+- name: Ensure correct permissions of logs
+  file:
+    path: /var/log/
+    state: directory
+    mode: '0600'
+    recurse: yes
+
+- name: Make sure daily log rotation setting is not overriden in /etc/logrotate.conf
+  lineinfile:
+    create: false
+    dest: /etc/logrotate.conf
+    regexp: '^[\s]*(weekly|monthly|yearly)$'
+    state: absent
+
+- name: Configure cron.daily
+  block:
+    - name: Add shebang
+      lineinfile:
+        path: /etc/cron.daily/logrotate
+        line: '#!/bin/sh'
+        insertbefore: BOF
+        create: true
+
+    - name: Add logrotate call
+      lineinfile:
+        path: /etc/cron.daily/logrotate
+        line: /usr/sbin/logrotate /etc/logrotate.conf
+        regexp: '^[\s]*/usr/sbin/logrotate[\s\S]*/etc/logrotate.conf$'
+
+- name: Disable service apport
+  systemd:
+    name: apport.service
+    enabled: 'no'
+    state: stopped
+    masked: 'yes'
+
 - name: Use chrony instead of NTP
   block:
     - name: stop and disable ntp

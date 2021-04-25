@@ -7,9 +7,9 @@
 
   vars:
     ssg_location: '/usr/local/xml/ssg_ubuntu2004'
-    xml_files: 'files/ssg_ubuntu2004/'
-    fetch_location: '/home/rigo/files/'
+    xml_files: 'ssg_ubuntu2004/'
     xccdf_profile: 'xccdf_org.ssgproject.content_profile_standard'
+    hosts_dir: '/var/lib/awx/'
 
   tasks:
 
@@ -47,13 +47,19 @@
 
     - name: Wait for Reports to finish
       pause:
-        seconds: 10
+        seconds: 5
 
     - name: Fetch Report Files
       fetch:
         src: "{{ item }}"
-        dest: " {{ fetch_location }}"
+        dest: " {{ hosts_dir }}"
         flat: yes
       with_items:
         - "{{ ssg_location }}/{{ inventory_hostname_short }}-OSCAP_Report-{{ ansible_date_time.date }}.html"
         - "{{ ssg_location }}/{{ inventory_hostname_short }}-OVAL_Report-{{ ansible_date_time.date }}.html"
+
+    - name: Remove Files
+      file:
+        path: "{{ ssg_location }}"
+        state: absent
+        mode: '0744'
