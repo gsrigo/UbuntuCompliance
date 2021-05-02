@@ -45,21 +45,22 @@
         - bunzip2 com.ubuntu.$(lsb_release -cs).usn.oval.xml.bz2
         - oscap oval eval --report {{ inventory_hostname_short }}-OVAL_Report-{{ ansible_date_time.date }}.html com.ubuntu.$(lsb_release -cs).usn.oval.xml
 
-    - name: Wait for Reports to finish
-      pause:
-        seconds: 5
+#Uncomment to transfer files to Hosts (master) system. Select locations from the vars section aboce appropiately. 
+    # - name: Wait for Reports to finish
+    #   pause:
+    #     seconds: 5
 
-    - name: Fetch Report Files
-      fetch:
-        src: "{{ item }}"
-        dest: " {{ hosts_dir }}"
-        flat: yes
-      with_items:
-        - "{{ ssg_location }}/{{ inventory_hostname_short }}-OSCAP_Report-{{ ansible_date_time.date }}.html"
-        - "{{ ssg_location }}/{{ inventory_hostname_short }}-OVAL_Report-{{ ansible_date_time.date }}.html"
+    # - name: Fetch Report Files
+    #   fetch:
+    #     src: "{{ item }}"s
+    #     dest: " {{ hosts_dir }}"
+    #     flat: yes
+    #   with_items:
+    #     - "{{ ssg_location }}/{{ inventory_hostname_short }}-OSCAP_Report-{{ ansible_date_time.date }}.html"
+    #     - "{{ ssg_location }}/{{ inventory_hostname_short }}-OVAL_Report-{{ ansible_date_time.date }}.html"
 
-    - name: Remove Files
-      file:
-        path: "{{ ssg_location }}"
-        state: absent
-        mode: '0744'
+    # - name: Remove Files
+    #   file:
+    #     path: "{{ ssg_location }}"
+    #     state: absent
+    #     mode: '0744'
